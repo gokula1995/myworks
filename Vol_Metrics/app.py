@@ -58,7 +58,7 @@ def ssh_exec_command(account_name, feed_name, host_name, command):
             result_dict={
                 "Account": str(result[0]),
                 "Feed": str(result[1]),
-                "PlayerName": str(result[2]),
+                "Name": str(result[2]),
                 "TotalDiskSize": str(result[3].strip("\n")), 
                 "Used": str(result[4].strip("\n")),
                 "Available": str(result[5].strip("\n")),
@@ -87,7 +87,7 @@ def ssh_exec_command(account_name, feed_name, host_name, command):
 
                 "Account": str(result[0]),
                 "Feed": str(result[1]),
-                "PlayerName": str(result[2]),
+                "Name": str(result[2]),
                 "TotalDiskSize": "Not Available", 
                 "Used": "Not Available",
                 "Available": "Not Available",
@@ -104,7 +104,7 @@ with concurrent.futures.ThreadPoolExecutor(5) as executor:
     output_list_sorted = sorted(output_list, key = lambda i: i['Used%'], reverse=True) 
     print(output_list_sorted)
 
-    fields = ['AWSAccountID', 'InstanceID', 'Region', 'Account', 'Feed', 'PlayerName', 'TotalDiskSize', 'Used', 'Available', 'Used%']
+    fields = ['AWSAccountID', 'InstanceID', 'Region', 'Account', 'Feed', 'Name', 'TotalDiskSize', 'Used', 'Available', 'Used%']
     file_name = "players_volume_report.csv"
     
     with open(file_name, 'w') as csvfile:
