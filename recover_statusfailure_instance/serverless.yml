@@ -1,0 +1,134 @@
+service: instance-monitor-recovery
+
+provider:
+  name: aws
+  runtime: python3.8
+  stage: ${opt:stage,'dev'}
+  region: ${opt:region,'us-east-1'}
+  memory: 128
+  timeout: 600
+  logRetentionInDays: 90
+
+# you can add statements to the Lambda function's IAM Role here
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "logs:CreateLogGroup"
+        - "logs:CreateLogStream"
+        - "logs:PutLogEvents"
+        - "logs:GetLogEvents"
+      Resource:
+        - "arn:aws:logs:*:*:*"
+    - Effect: "Allow"
+      Action:
+        - "lambda:InvokeFunction"
+      Resource:
+        - "*"
+    - Effect: "Allow"
+      Action:
+        - "ec2:Describe*"
+        - "ec2:ExportClientVpnClientCertificateRevocationList"
+        - "ec2:ExportClientVpnClientConfiguration"
+        - "ec2:Get*"
+        - "ec2:SearchTransitGatewayRoutes"
+        - "ec2:StartInstances"
+        - "ec2:StopInstances"
+      Resource:
+        - "*"
+    - Effect: "Allow"
+      Action:
+        - "sns:TagResource"
+        - "sns:List*"
+        - "sns:Get*"
+        - "sns:SetSMSAttributes"
+        - "sns:SetTopicAttributes"
+        - "sns:UntagResource"
+        - "sns:CheckIfPhoneNumberIsOptedOut"
+        - "sns:SetEndpointAttributes"
+        - "sns:SetSubscriptionAttributes"
+        - "sns:Publish"
+        - "sns:SetPlatformApplicationAttributes"
+        - "sns:Subscribe"
+        - "sns:ConfirmSubscription"
+        - "sns:CreateTopic"
+      Resource:
+          - "*"          
+  
+  environment:
+    SNS_SUCCESS_NOTIFY_TOPIC: ${file(./config.${self:provider.stage}.yml):SNS_SUCCESS_NOTIFY_TOPIC}
+    SNS_EC2_RECOVERY_FAILURE_NOTIFY_TOPIC: ${file(./config.${self:provider.stage}.yml):SNS_EC2_RECOVERY_FAILURE_NOTIFY_TOPIC}
+    SNS_FORCESTOP_SUCCESS_TOPIC: ${file(./config.${self:provider.stage}.yml):SNS_FORCESTOP_SUCCESS_TOPIC}
+    SNS_FORCESTOP_FAILURE_TOPIC:  ${file(./config.${self:provider.stage}.yml):SNS_FORCESTOP_FAILURE_TOPIC}
+    STATUS_CHECK_FAILED_SNS_TOPIC: ${file(./config.${self:provider.stage}.yml):STATUS_CHECK_FAILED_SNS_TOPIC}
+    EMAIL_ID: ${file(./config.${self:provider.stage}.yml):EMAIL_ID}
+    REGION: ${self:provider.region}
+
+  plugins:
+    - serverless-pseudo-parameters
+
+functions:
+  instanceMonitor:
+    handler: monitor_instance.lambda_handler
+    events:
+      - sns: ${self:provider.environment.STATUS_CHECK_FAILED_SNS_TOPIC}
+  forceStopInstance:
+    handler: force_stop_instance.lambda_handler
+    events:
+      - sns:
+         arn: !Ref RecoveryFailureTopic
+         topicName: ${self:provider.environment.SNS_EC2_RECOVERY_FAILURE_NOTIFY_TOPIC}
+
+resources:
+  Resources:
+
+    SuccessNotifyTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: 'SuccessNotifyMsg'
+        TopicName: ${self:provider.environment.SNS_SUCCESS_NOTIFY_TOPIC}
+    MailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: ${self:provider.environment.EMAIL_ID}
+        Protocol: email
+        TopicArn: !Ref SuccessNotifyTopic
+
+    RecoveryFailureTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: 'RecoveryFailureTopic'
+        TopicName: ${self:provider.environment.SNS_EC2_RECOVERY_FAILURE_NOTIFY_TOPIC}
+    FailureMailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: ${self:provider.environment.EMAIL_ID}
+        Protocol: email
+        TopicArn: !Ref RecoveryFailureTopic
+
+    ForceStopSuccessNotifyTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: 'SuccessNotifyMsg'
+        TopicName: ${self:provider.environment.SNS_FORCESTOP_SUCCESS_TOPIC}
+    ForceStopSuccessMailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: ${self:provider.environment.EMAIL_ID}
+        Protocol: email
+        TopicArn: !Ref ForceStopSuccessNotifyTopic
+
+    ForceStopFailureTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: 'ForceStopFailure'
+        TopicName: ${self:provider.environment.SNS_FORCESTOP_FAILURE_TOPIC}
+    ForceStopFailureTopicMailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: ${self:provider.environment.EMAIL_ID}
+        Protocol: email
+        TopicArn: !Ref ForceStopFailureTopic
+
+Outputs:
+  ForceStopSuccessNotifyTopicArn:
+    Value: !Ref RecoveryFailureTopic

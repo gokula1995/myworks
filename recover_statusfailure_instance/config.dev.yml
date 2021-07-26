@@ -1,0 +1,6 @@
+    SNS_SUCCESS_NOTIFY_TOPIC: SuccessNotifyMsg
+    SNS_EC2_RECOVERY_FAILURE_NOTIFY_TOPIC: Ec2RecoveryFailure
+    SNS_FORCESTOP_SUCCESS_TOPIC: ForceStopSuccess
+    SNS_FORCESTOP_FAILURE_TOPIC:  ForceStopFailure
+    STATUS_CHECK_FAILED_SNS_TOPIC: status-check-failed
+    EMAIL_ID: gokula.adabala@gmail.com
